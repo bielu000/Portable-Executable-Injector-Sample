@@ -1,8 +1,23 @@
-﻿  PeDumper.c
-c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(34): warning C4477: „printf”: ciąg formatu „%#08x” wymaga argumentu typu „unsigned int”, ale argument 1 ze zmienną liczbą argumentów ma typ „ULONGLONG”
-  c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(34): note: rozważ użycie elementu „%llx” w ciągu formatu
-  c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(34): note: rozważ użycie elementu „%Ix” w ciągu formatu
-  c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(34): note: rozważ użycie elementu „%I64x” w ciągu formatu
-c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(54): warning C4477: „printf”: ciąg formatu „%#08x” wymaga argumentu typu „unsigned int”, ale argument 1 ze zmienną liczbą argumentów ma typ „LPVOID”
-c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(54): warning C4313: „printf”: „%x” w ciągu formatu powoduje konflikt z argumentem 1 typu „LPVOID”
-  PeDumper.vcxproj -> C:\Users\pbiel\source\repos\PeDumper\x64\Debug\PeDumper.exe
+﻿  file_helper.c
+  memory_helper.c
+c:\users\pb\source\repos\pedumper\pedumper\memory_helper.c(5): warning C4018: '<': signed/unsigned mismatch
+c:\users\pb\source\repos\pedumper\pedumper\memory_helper.c(7): warning C4013: 'printf' undefined; assuming extern returning int
+  PeDumper.c
+c:\users\pb\source\repos\pedumper\pedumper\pedumper.c(36): error C2039: 'BaseOfData': is not a member of '_IMAGE_OPTIONAL_HEADER64'
+  c:\program files\windows kits\10\include\10.0.16299.0\um\winnt.h(16389): note: see declaration of '_IMAGE_OPTIONAL_HEADER64'
+c:\users\pb\source\repos\pedumper\pedumper\pedumper.c(46): warning C4018: '<': signed/unsigned mismatch
+c:\users\pb\source\repos\pedumper\pedumper\pedumper.c(63): warning C4047: '==': '__unaligned DWORD' differs in levels of indirection from 'void *'
+c:\users\pb\source\repos\pedumper\pedumper\pedumper.c(70): warning C4047: '!=': 'ULONGLONG' differs in levels of indirection from 'void *'
+c:\users\pb\source\repos\pedumper\pedumper\pedumper.c(36): warning C4473: 'printf' : not enough arguments passed for format string
+  c:\users\pb\source\repos\pedumper\pedumper\pedumper.c(36): note: placeholders and their parameters expect 1 variadic arguments, but 0 were provided
+  c:\users\pb\source\repos\pedumper\pedumper\pedumper.c(36): note: the missing variadic argument 1 is required by format string '%#08x'
+c:\users\pb\source\repos\pedumper\pedumper\pedumper.c(37): warning C4477: 'printf' : format string '%#08x' requires an argument of type 'unsigned int', but variadic argument 1 has type 'ULONGLONG'
+  c:\users\pb\source\repos\pedumper\pedumper\pedumper.c(37): note: consider using '%llx' in the format string
+  c:\users\pb\source\repos\pedumper\pedumper\pedumper.c(37): note: consider using '%Ix' in the format string
+  c:\users\pb\source\repos\pedumper\pedumper\pedumper.c(37): note: consider using '%I64x' in the format string
+c:\users\pb\source\repos\pedumper\pedumper\pedumper.c(67): warning C4477: 'printf' : format string '%s' requires an argument of type 'char *', but variadic argument 1 has type 'ULONG_PTR'
+c:\users\pb\source\repos\pedumper\pedumper\pedumper.c(72): warning C4477: 'printf' : format string '%s' requires an argument of type 'char *', but variadic argument 1 has type 'ULONG_PTR'
+c:\users\pb\source\repos\pedumper\pedumper\pedumper.c(121): warning C4018: '<': signed/unsigned mismatch
+c:\users\pb\source\repos\pedumper\pedumper\pedumper.c(122): warning C4047: '==': 'DWORD' differs in levels of indirection from 'void *'
+  pe_helper.c
+  Generating Code...

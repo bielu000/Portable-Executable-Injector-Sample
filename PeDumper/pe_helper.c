@@ -65,7 +65,7 @@ PIMAGE_DATA_DIRECTORY get_data_directory(BYTE* buffer, DWORD dir_id)
 	return imdd;
 }
 
-BOOL copy_payload_to_local(LPVOID base_address, BYTE* payload)
+BOOL copy_raw_to_image_local(LPVOID base_address, BYTE* payload)
 {
 	PIMAGE_NT_HEADERS inth = get_nt_headers(payload);
 
@@ -93,4 +93,9 @@ BOOL copy_payload_to_local(LPVOID base_address, BYTE* payload)
 	}
 
 	return TRUE;
+}
+
+BOOL copy_remote_to_image_local(LPVOID base_address, LPVOID base_remote_address)
+{
+
 }
