@@ -1,0 +1,8 @@
+﻿  PeDumper.c
+c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(34): warning C4477: „printf”: ciąg formatu „%#08x” wymaga argumentu typu „unsigned int”, ale argument 1 ze zmienną liczbą argumentów ma typ „ULONGLONG”
+  c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(34): note: rozważ użycie elementu „%llx” w ciągu formatu
+  c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(34): note: rozważ użycie elementu „%Ix” w ciągu formatu
+  c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(34): note: rozważ użycie elementu „%I64x” w ciągu formatu
+c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(54): warning C4477: „printf”: ciąg formatu „%#08x” wymaga argumentu typu „unsigned int”, ale argument 1 ze zmienną liczbą argumentów ma typ „LPVOID”
+c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(54): warning C4313: „printf”: „%x” w ciągu formatu powoduje konflikt z argumentem 1 typu „LPVOID”
+  PeDumper.vcxproj -> C:\Users\pbiel\source\repos\PeDumper\x64\Debug\PeDumper.exe

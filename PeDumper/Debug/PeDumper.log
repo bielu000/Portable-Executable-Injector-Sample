@@ -1,0 +1,9 @@
+﻿  PeDumper.c
+c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(46): warning C4018: "<": niezgodność typu ze znakiem/bez znaku
+c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(63): warning C4047: "==": "DWORD" różni się w poziomach operatorów pośrednich od "void *"
+c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(67): warning C4477: „printf”: ciąg formatu „%s” wymaga argumentu typu „char *”, ale argument 1 ze zmienną liczbą argumentów ma typ „unsigned long”
+c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(70): warning C4047: "!=": "DWORD" różni się w poziomach operatorów pośrednich od "void *"
+c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(72): warning C4477: „printf”: ciąg formatu „%s” wymaga argumentu typu „char *”, ale argument 1 ze zmienną liczbą argumentów ma typ „unsigned long”
+c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(121): warning C4018: "<": niezgodność typu ze znakiem/bez znaku
+c:\users\pbiel\source\repos\pedumper\pedumper\pedumper.c(122): warning C4047: "==": "DWORD" różni się w poziomach operatorów pośrednich od "void *"
+  PeDumper.vcxproj -> C:\Users\pbiel\source\repos\PeDumper\Debug\PeDumper.exe
