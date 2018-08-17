@@ -66,6 +66,7 @@ void print_image_info(LPVOID baseAddress, const char* imageName)
 		printf("\nModule name: %s\n", ((ULONG_PTR)baseAddress + imd->Name));
 		printf(" OriginalFirstThunk: %#08x\n",  imd->OriginalFirstThunk);
 		printf(" FirstThunk: %#08x\n", imd->FirstThunk);
+		printf(" FirstThunk Val: %#08x\n", ((ULONG_PTR)baseAddress + imd->FirstThunk));
 		printf(" Functions: \n", ((ULONG_PTR)baseAddress + imd->FirstThunk));
 		PIMAGE_THUNK_DATA p_imp_thunk_data = (PIMAGE_THUNK_DATA)((ULONG_PTR)baseAddress + imd->OriginalFirstThunk);
 		
