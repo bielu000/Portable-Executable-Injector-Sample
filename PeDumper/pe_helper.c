@@ -95,7 +95,7 @@ BOOL copy_raw_to_image_local(LPVOID base_address, BYTE* payload)
 	return TRUE;
 }
 
-BOOL copy_remote_to_image_local(LPVOID base_address, LPVOID base_remote_address)
+BOOL copy_remote_to_image_local(LPVOID base_address, LPVOID base_remote_address, DWORD processId)
 {
 
 }

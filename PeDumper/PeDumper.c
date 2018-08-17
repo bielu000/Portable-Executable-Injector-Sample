@@ -63,15 +63,27 @@ void print_image_info(LPVOID baseAddress, const char* imageName)
 		if (imd->FirstThunk == NULL || imd->OriginalFirstThunk == NULL) {
 			break;
 		}
-
 		printf("\nModule name: %s\n", ((ULONG_PTR)baseAddress + imd->Name));
-		PIMAGE_THUNK_DATA pimth = (PIMAGE_THUNK_DATA)((ULONG_PTR)baseAddress + imd->OriginalFirstThunk);
+		printf(" OriginalFirstThunk: %#08x\n",  imd->OriginalFirstThunk);
+		printf(" FirstThunk: %#08x\n", imd->FirstThunk);
+		printf(" Functions: \n", ((ULONG_PTR)baseAddress + imd->FirstThunk));
+		PIMAGE_THUNK_DATA p_imp_thunk_data = (PIMAGE_THUNK_DATA)((ULONG_PTR)baseAddress + imd->OriginalFirstThunk);
 		
-		while (pimth->u1.ForwarderString != NULL) {
+		while (p_imp_thunk_data->u1.ForwarderString != NULL) {
 			DWORD hintBytes = sizeof(BYTE) * 2;
-			printf("  %s\n", ((ULONG_PTR)baseAddress + pimth->u1.ForwarderString+ hintBytes));
-			pimth++;
+			printf("    %s\n", ((ULONG_PTR)baseAddress + p_imp_thunk_data->u1.ForwarderString+ hintBytes));
+			p_imp_thunk_data++;
+
 		}
+
+		//ImportNameTableRVA -> OriginalFirstThunk
+		//ImportAddressTableRVA -> FirstThunk
+
+		//
+		//DWORD ForwarderString;      // PBYTE 
+		//DWORD Function;             // PDWORD
+		//DWORD Ordinal;
+		//DWORD AddressOfData;        // PIMAGE_IMPORT_BY_NAME
 
 		imd++;
 		parsedSize += sizeof(IMAGE_IMPORT_DESCRIPTOR);
@@ -83,20 +95,48 @@ void print_image_info(LPVOID baseAddress, const char* imageName)
 
 int main()
 {
-	FILE * raw_payload = get_file_buffer("C:\\Windows\\System32\\calc.exe");
-	PIMAGE_NT_HEADERS inth = get_nt_headers(raw_payload);
+	//FILE * raw_payload = get_file_buffer("C:\\Windows\\System32\\calc.exe");
+	//PIMAGE_NT_HEADERS inth = get_nt_headers(raw_payload);
 
-	LPVOID pe_buffer = VirtualAlloc(NULL, inth->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-	copy_raw_to_image_local(pe_buffer, raw_payload);
-	free(raw_payload);
+	//LPVOID pe_buffer = VirtualAlloc(NULL, inth->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+	//copy_raw_to_image_local(pe_buffer, raw_payload);
+	//free(raw_payload);
 	//print_image_info(pe_buffer, "calc.exe");
-	//VirtualFree(pe_buffer, inth->OptionalHeader.SizeOfImage, MEM_DECOMMIT);
+	//VirtualFree(pe_buffer, inth->OptionalHeader.SizeOfImage, MEM_RELEASE);
 
+	DWORD processId = find_process_id("DummyApp.exe");
 
-	printf("test");
+	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, processId);
+
+	if (hSnapshot == NULL) {
+		printf("Cannot create process snapshot!\n");
+
+		return 1;
+	}
+
+	MODULEENTRY32 mod;
+
+	Module32First(hSnapshot, &mod);
+
+	DWORD moduleSize = mod.modBaseSize;
+	LPVOID localBuffer = VirtualAlloc(NULL, moduleSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+
+	HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, NULL, processId);
+
+	DWORD bytesRead;
+
+	if (!ReadProcessMemory(hProcess, mod.modBaseAddr, localBuffer, moduleSize, &bytesRead)) {
+		printf("Cannot read process memory: %d\n", GetLastError());
+	}
+
+	print_image_info(localBuffer, "DummyApp.exe");
+
+	CloseHandle(hProcess);
+
+	VirtualFree(localBuffer, moduleSize, MEM_DECOMMIT);
+
 	getchar();
 
-	printf("Test2");
 	return 0;
 }
 
