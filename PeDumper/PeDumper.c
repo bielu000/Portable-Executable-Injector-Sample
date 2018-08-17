@@ -2,12 +2,12 @@
 #include <TlHelp32.h>
 #include <Psapi.h>
 #include <stdio.h>
+#include <tchar.h>
 #include "file_helper.h"
 #include "memory_helper.h"
 #include "pe_helper.h"
+#include "process_helper.h"
 
-
-#include <tchar.h>
 void print_image_info(LPVOID baseAddress, const char* imageName)
 {
 
@@ -81,98 +81,22 @@ void print_image_info(LPVOID baseAddress, const char* imageName)
 	printf("----------------- END -----------------\n");
 }
 
-
-void print_current_proc_info()
-{
-	DWORD currentProcId = GetCurrentProcessId();
-	
-	printf("Current process id: %d\n", currentProcId);
-	
-	HANDLE procSnap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, currentProcId);
-
-	MODULEENTRY32 mod;
-
-	Module32First(procSnap, &mod);
-
-
-	PIMAGE_DOS_HEADER idh = (PIMAGE_DOS_HEADER)mod.modBaseAddr;
-
-	PIMAGE_NT_HEADERS inth = (PIMAGE_NT_HEADERS)((ULONG_PTR)mod.modBaseAddr + idh->e_lfanew);
-
-	print_image_info((LPVOID)mod.modBaseAddr, "PeDumper.exe");
-
-}
-
-
-void print_proc_info(const char* process)
-{
-	DWORD aProcesses[1024];
-	DWORD cbNeeded;
-	DWORD cProcess;
-
-	if (!EnumProcesses(aProcesses, sizeof(aProcesses), &cbNeeded)) {
-		printf("Cannot enumerate all processes.\n");
-
-		return;
-	}
-
-	cProcess = cbNeeded / sizeof(DWORD);
-
-	for (int i = 0; i < cProcess; i++) {
-		if (aProcesses[i] == NULL) {
-			continue;
-		}
-
-		DWORD processId = aProcesses[i];
-		printf("Process PID: %d\n", processId);
-		HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, processId);
-
-		if (hProcess == NULL) {
-			continue;
-		}
-
-
-
-		HMODULE hMod;
-		DWORD cbNeeded;
-
-		TCHAR szProcessName[MAX_PATH] = TEXT("<unknown>");
-
-		if (EnumProcessModules(hProcess, &hMod, sizeof(hMod),
-			&cbNeeded))
-		{
-			GetModuleBaseName(hProcess, hMod, szProcessName,
-				sizeof(szProcessName) / sizeof(TCHAR));
-		}
-		_tprintf(TEXT("%s  (PID: %u)\n"), szProcessName, processId);
-
-		CloseHandle(hProcess);
-	}
-
-}
-
-
-
 int main()
 {
-	//print_proc_info();
-	print_proc_info("calc.exe");
-	const char* exe = "C:\\Windows\\system32\\calc.exe";
-
-	BYTE* payload = get_file_buffer(exe);
-
-	printf("Buffer pointer: %p\n", payload);
-
-	IMAGE_NT_HEADERS* inth = get_nt_headers(payload);
+	FILE * raw_payload = get_file_buffer("C:\\Windows\\System32\\calc.exe");
+	PIMAGE_NT_HEADERS inth = get_nt_headers(raw_payload);
 
 	LPVOID pe_buffer = VirtualAlloc(NULL, inth->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-	copy_payload_to_local(pe_buffer, payload);
+	copy_raw_to_image_local(pe_buffer, raw_payload);
+	free(raw_payload);
+	//print_image_info(pe_buffer, "calc.exe");
+	//VirtualFree(pe_buffer, inth->OptionalHeader.SizeOfImage, MEM_DECOMMIT);
 
-	print_image_info(pe_buffer, "Calc.exe");
 
-	VirtualFree(pe_buffer, inth->OptionalHeader.SizeOfImage, MEM_RELEASE);
-	free(payload);
+	printf("test");
 	getchar();
+
+	printf("Test2");
 	return 0;
 }
 
