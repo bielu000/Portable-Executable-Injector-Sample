@@ -5,3 +5,6 @@ Debug
 Release
 
 DummyApp/Debug
+
+InjectTarget/Debug
+InjectTarget/Release

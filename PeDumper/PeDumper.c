@@ -64,19 +64,22 @@ void print_image_info(LPVOID baseAddress, const char* imageName)
 			break;
 		}
 		printf("\nModule name: %s\n", ((ULONG_PTR)baseAddress + imd->Name));
-		printf(" OriginalFirstThunk: %#08x\n",  imd->OriginalFirstThunk);
-		printf(" FirstThunk: %#08x\n", imd->FirstThunk);
-		printf(" FirstThunk Val: %#08x\n", ((ULONG_PTR)baseAddress + imd->FirstThunk));
-		printf(" Functions: \n", ((ULONG_PTR)baseAddress + imd->FirstThunk));
-		PIMAGE_THUNK_DATA p_imp_thunk_data = (PIMAGE_THUNK_DATA)((ULONG_PTR)baseAddress + imd->OriginalFirstThunk);
-		
-		while (p_imp_thunk_data->u1.ForwarderString != NULL) {
+		printf(" OriginalFirstThunk: %#008x\n",  imd->OriginalFirstThunk);
+		printf(" FirstThunk: %#010x\n", imd->FirstThunk);
+		printf(" Functions: \n");
+
+		PIMAGE_THUNK_DATA p_thunk_data = (PIMAGE_THUNK_DATA)((ULONG_PTR)baseAddress + imd->FirstThunk);
+
+		PIMAGE_THUNK_DATA p_org_thunk_data = (PIMAGE_THUNK_DATA)((ULONG_PTR)baseAddress + imd->OriginalFirstThunk);
+		while (p_org_thunk_data->u1.ForwarderString != NULL) {
 			DWORD hintBytes = sizeof(BYTE) * 2;
-			printf("    %s\n", ((ULONG_PTR)baseAddress + p_imp_thunk_data->u1.ForwarderString+ hintBytes));
-			p_imp_thunk_data++;
+			printf("    %s\n", ((ULONG_PTR)baseAddress + p_org_thunk_data->u1.ForwarderString+ hintBytes));
+			p_org_thunk_data++;
 
 		}
 
+		
+		
 		//ImportNameTableRVA -> OriginalFirstThunk
 		//ImportAddressTableRVA -> FirstThunk
 
@@ -92,22 +95,27 @@ void print_image_info(LPVOID baseAddress, const char* imageName)
 
 
 	printf("----------------- END -----------------\n");
+
+	printf("\n----------------- REALOCS -----------------\n");
+	PIMAGE_DATA_DIRECTORY rel_dir = get_data_directory(baseAddress, IMAGE_DIRECTORY_ENTRY_BASERELOC);
+
+	if (rel_dir == NULL) {
+		printf("Cannot print rellocation. Dir is null\n");
+	}
+	
+	PIMAGE_BASE_RELOCATION rel_entry = (PIMAGE_BASE_RELOCATION)((ULONG_PTR)baseAddress + rel_dir->VirtualAddress);
+
+
+	printf("----------------- END -----------------\n");
 }
 
-int main()
+void remote_process()
 {
-	//FILE * raw_payload = get_file_buffer("C:\\Windows\\System32\\calc.exe");
-	//PIMAGE_NT_HEADERS inth = get_nt_headers(raw_payload);
+	char* payload = "DummyApp.exe";
 
-	//LPVOID pe_buffer = VirtualAlloc(NULL, inth->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-	//copy_raw_to_image_local(pe_buffer, raw_payload);
-	//free(raw_payload);
-	//print_image_info(pe_buffer, "calc.exe");
-	//VirtualFree(pe_buffer, inth->OptionalHeader.SizeOfImage, MEM_RELEASE);
+	DWORD payloadProcId = find_process_id("DummyApp.exe");
 
-	DWORD processId = find_process_id("DummyApp.exe");
-
-	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, processId);
+	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, payloadProcId);
 
 	if (hSnapshot == NULL) {
 		printf("Cannot create process snapshot!\n");
@@ -122,7 +130,7 @@ int main()
 	DWORD moduleSize = mod.modBaseSize;
 	LPVOID localBuffer = VirtualAlloc(NULL, moduleSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 
-	HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, NULL, processId);
+	HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, NULL, payloadProcId);
 
 	DWORD bytesRead;
 
@@ -135,6 +143,21 @@ int main()
 	CloseHandle(hProcess);
 
 	VirtualFree(localBuffer, moduleSize, MEM_DECOMMIT);
+}
+
+int main()
+{
+	//FILE * raw_payload = get_file_buffer("C:\\Windows\\System32\\calc.exe");
+	//PIMAGE_NT_HEADERS inth = get_nt_headers(raw_payload);
+
+	//LPVOID pe_buffer = VirtualAlloc(NULL, inth->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+	//copy_raw_to_image_local(pe_buffer, raw_payload);
+	//free(raw_payload);
+	//print_image_info(pe_buffer, "calc.exe");
+	//VirtualFree(pe_buffer, inth->OptionalHeader.SizeOfImage, MEM_RELEASE);
+
+
+	remote_process();
 
 	getchar();
 
