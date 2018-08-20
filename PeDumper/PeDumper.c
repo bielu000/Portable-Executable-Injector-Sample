@@ -8,6 +8,11 @@
 #include "pe_helper.h"
 #include "process_helper.h"
 
+typedef struct {
+	WORD offset : 12;
+	WORD type : 4;
+} BaseRelocationEntry, *PBaseRelocationEntry;
+
 void print_image_info(LPVOID baseAddress, const char* imageName)
 {
 
@@ -145,19 +150,85 @@ void remote_process()
 	VirtualFree(localBuffer, moduleSize, MEM_DECOMMIT);
 }
 
+
+BOOL fix_relocations(LPVOID baseAddress, LPVOID payload)
+{
+	PIMAGE_NT_HEADERS p_nt_headers = get_nt_headers(payload);
+
+	if (p_nt_headers == NULL) {
+		printf("Cannot fix relocations : Nt headers are null.\n");
+
+		return FALSE;
+	}
+
+	PIMAGE_DATA_DIRECTORY reloc_dir = get_data_directory(payload, IMAGE_DIRECTORY_ENTRY_BASERELOC);
+
+	if (reloc_dir == NULL) {
+		printf("Cannot fix relactions: reloc directory is null.\n");
+
+		return FALSE;
+	}
+
+	PIMAGE_BASE_RELOCATION reloc_block = (PIMAGE_BASE_RELOCATION)((ULONG_PTR)payload + reloc_dir->VirtualAddress);
+	DWORD section_size = reloc_dir->Size;
+
+	while (reloc_block->VirtualAddress != NULL) {
+		printf("Block: %#08x Size: %#08x\n", reloc_block->VirtualAddress, reloc_block->SizeOfBlock);
+		DWORD maxParsedEntryBytes = reloc_block->SizeOfBlock - sizeof(IMAGE_BASE_RELOCATION);
+		DWORD parsedBytes = 0;
+		while (parsedBytes < maxParsedEntryBytes) {
+
+			PBaseRelocationEntry reloc_entry = (PBaseRelocationEntry)((ULONG_PTR)reloc_block + sizeof(IMAGE_BASE_RELOCATION) + parsedBytes);
+			parsedBytes += sizeof(BaseRelocationEntry);
+			if (reloc_entry->type == NULL) {
+				continue;
+			}
+
+			printf(" Address: %#08x, Bytes: %#08x, Value:  %#08x\n", reloc_entry, parsedBytes, reloc_entry->offset);
+
+		} ;
+
+		reloc_block = (PIMAGE_BASE_RELOCATION)((ULONG_PTR)reloc_block + reloc_block->SizeOfBlock);
+	}
+	
+}
+
+
 int main()
 {
-	//FILE * raw_payload = get_file_buffer("C:\\Windows\\System32\\calc.exe");
-	//PIMAGE_NT_HEADERS inth = get_nt_headers(raw_payload);
+	FILE * raw_payload = get_file_buffer("C:\\Users\\pbiel\\source\\repos\\PeDumper\\Debug\\PeDumper.exe");
+	PIMAGE_NT_HEADERS inth = get_nt_headers(raw_payload);
 
-	//LPVOID pe_buffer = VirtualAlloc(NULL, inth->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-	//copy_raw_to_image_local(pe_buffer, raw_payload);
-	//free(raw_payload);
-	//print_image_info(pe_buffer, "calc.exe");
-	//VirtualFree(pe_buffer, inth->OptionalHeader.SizeOfImage, MEM_RELEASE);
+	LPVOID pe_buffer = VirtualAlloc(NULL, inth->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+	copy_raw_to_image_local(pe_buffer, raw_payload);
+	
+
+	PIMAGE_DATA_DIRECTORY pim = get_data_directory(pe_buffer, IMAGE_DIRECTORY_ENTRY_BASERELOC);
+
+	if (pim == NULL) {
+		printf("Relocc pim is NULL\n");
+	}
+
+	DWORD_PTR rel_dir_address = pim->VirtualAddress;
+	DWORD rel_dir_size = pim->Size;
+
+	PIMAGE_BASE_RELOCATION p_rel_block =  (PIMAGE_BASE_RELOCATION)((ULONG_PTR)pe_buffer + rel_dir_address);
+
+	DWORD parsed = 0;
+	DWORD maxParseSize = rel_dir_size - sizeof(IMAGE_BASE_RELOCATION);
+
+	while (parsed < maxParseSize) {
+		PBaseRelocationEntry p_base_rel_entry = (PBaseRelocationEntry)((ULONG_PTR)&p_rel_block->SizeOfBlock + sizeof(p_rel_block->SizeOfBlock) + parsed);
+		
+
+		parsed += sizeof(BaseRelocationEntry);
+	}
 
 
-	remote_process();
+	fix_relocations(inth->OptionalHeader.ImageBase, pe_buffer);
+	free(raw_payload);
+	VirtualFree(pe_buffer, inth->OptionalHeader.SizeOfImage, MEM_RELEASE);
+
 
 	getchar();
 
