@@ -4,3 +4,8 @@ PeDumper/x64
 Debug
 Release
 
+DummyApp/Debug
+
+InjectTarget/Debug
+InjectTarget/Release
+

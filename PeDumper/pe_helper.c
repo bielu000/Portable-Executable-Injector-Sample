@@ -2,6 +2,11 @@
 #include <stdio.h>
 #include "memory_helper.h"
 
+typedef struct {
+	WORD offset : 12;
+	WORD type : 4;
+} BaseRelocationEntry, *PBaseRelocationEntry;
+
 PIMAGE_DOS_HEADER get_dos_headers(LPVOID baseAddress)
 {
 	if (baseAddress == NULL) {
@@ -95,7 +100,61 @@ BOOL copy_raw_to_image_local(LPVOID base_address, BYTE* payload)
 	return TRUE;
 }
 
-BOOL copy_remote_to_image_local(LPVOID base_address, LPVOID base_remote_address)
+void adjust_relocations(LPVOID imageBase, LPVOID payload)
 {
+	printf("\nAdjusting relocations...\n");
+	PIMAGE_NT_HEADERS p_nt_headers = get_nt_headers(payload);
 
+	if (p_nt_headers == NULL) {
+		printf("Cannot fix relocations : Nt headers are null.\n");
+
+		return FALSE;
+	}
+
+	PIMAGE_DATA_DIRECTORY reloc_dir = get_data_directory(payload, IMAGE_DIRECTORY_ENTRY_BASERELOC);
+
+	if (reloc_dir == NULL) {
+		printf("Cannot fix relactions: reloc directory is null.\n");
+
+		return FALSE;
+	}
+
+	PIMAGE_BASE_RELOCATION reloc_block = (PIMAGE_BASE_RELOCATION)((ULONG_PTR)payload + reloc_dir->VirtualAddress);
+	DWORD section_size = reloc_dir->Size;
+	ULONG_PTR preferedImageBase = p_nt_headers->OptionalHeader.ImageBase;
+
+	printf("Current image base: %#010x\n", imageBase);
+	printf("Prefered image base: %#010x\n", preferedImageBase);
+
+	while (reloc_block->VirtualAddress != NULL) {
+		printf("Block: %#010x Size: %#010x\n", reloc_block->VirtualAddress, reloc_block->SizeOfBlock);
+		DWORD maxParsedEntryBytes = reloc_block->SizeOfBlock - sizeof(IMAGE_BASE_RELOCATION);
+		DWORD parsedBytes = 0;
+		while (parsedBytes < maxParsedEntryBytes) {
+			PBaseRelocationEntry reloc_entry = (PBaseRelocationEntry)((ULONG_PTR)reloc_block + sizeof(IMAGE_BASE_RELOCATION) + parsedBytes);
+			parsedBytes += sizeof(BaseRelocationEntry);
+
+			if (reloc_entry->type == NULL) {
+				continue;
+			}
+
+			//Add error checking
+			PULONG_PTR reloc = ((ULONG_PTR)payload + (reloc_block->VirtualAddress + reloc_entry->offset));
+			if (reloc == NULL) {
+				printf("Relocations is null!\n");
+
+				continue;
+			}
+
+			ULONG_PTR copy = *reloc; //only for info purpose
+			ULONG_PTR calculated_value = (*reloc - preferedImageBase) + (ULONG_PTR)imageBase;
+			*reloc = calculated_value;
+
+			printf(" Address: %#010x, Value:  %#010x, Before: %#010x, After: %#010x\n", reloc_entry, reloc_entry->offset, copy, *reloc);
+
+		};
+		reloc_block = (PIMAGE_BASE_RELOCATION)((ULONG_PTR)reloc_block + reloc_block->SizeOfBlock);
+	}
+
+	printf("\nDone...!\n");
 }
