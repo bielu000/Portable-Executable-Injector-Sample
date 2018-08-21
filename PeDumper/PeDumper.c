@@ -114,7 +114,7 @@ void remote_process()
 {
 	char* payload = "DummyApp.exe";
 
-	DWORD payloadProcId = find_process_id("DummyApp.exe");
+	DWORD payloadProcId = get_process_id("DummyApp.exe");
 
 	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, payloadProcId);
 
@@ -208,21 +208,88 @@ void adjust_imports(LPVOID payload)
 	}
 }
 
-int main()
+/*
+	1. Open raw payload file 
+	2. Allocate local buffer 
+	3. Copy raw image to local buffer => loc_buff
+	4. Get remote process id
+	5. Allocate page on remote process
+	6. Adjust relocation using base address of allocated page
+	7. Adjust imports
+	8. Copy local buffer "loc_buff" to remote using allocated page
+	9. Free local buffer
+	10. Create remote thread started from entrypoint
+*/
+
+void inject_into_remote(DWORD pid)
 {
-	FILE * raw_payload = get_file_buffer("C:\\Users\\pb\\source\\repos\\pe-dumper\\Debug\\DummyApp.exe");
+	char* target_n = "InjectTarget.exe";
+	char* payload_path  = "C:\\Users\\pbiel\\source\\repos\\PeDumper\\Debug\\DummyApp.exe";
+
+	FILE* raw_payload = get_file_buffer(payload_path);
 	PIMAGE_NT_HEADERS inth = get_nt_headers(raw_payload);
 
-	LPVOID pe_buffer = VirtualAlloc(NULL, inth->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-	copy_raw_to_image_local(pe_buffer, raw_payload);
+	DWORD kImageSize = inth->OptionalHeader.SizeOfImage;
+	//DWORD kTargetProcId = get_process_id(target_n);
+	DWORD kTargetProcId = pid;
+
+	HANDLE hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_WRITE, NULL, kTargetProcId);
+	if (hProcess == NULL) {
+		printf("Error: Process handle is NULL\n");
+	}
 	
-	adjust_relocations(pe_buffer, pe_buffer);
-	adjust_imports(pe_buffer);
-	run_local_copy((ULONG_PTR)pe_buffer + inth->OptionalHeader.AddressOfEntryPoint);
+	LPVOID imageBaseRemote = VirtualAllocEx(hProcess, NULL, kImageSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	if (imageBaseRemote == NULL) {
+		printf("Error: Image base remote is NULL\n");
+	}
 
-	free(raw_payload);
-	VirtualFree(pe_buffer, inth->OptionalHeader.SizeOfImage, MEM_RELEASE);
+	LPVOID imageBaseLocal = VirtualAlloc(NULL, kImageSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	copy_raw_to_image_local(imageBaseLocal, raw_payload);
+	adjust_relocations(imageBaseRemote, imageBaseLocal);
+	adjust_imports(imageBaseLocal);
+	
+	DWORD bytesWritten;
+	if (!WriteProcessMemory(hProcess, imageBaseRemote, imageBaseLocal, kImageSize, &bytesWritten)) {
+		printf("Cannot write to remote process!\n");
+	}
 
+	LPTHREAD_START_ROUTINE routine = ((ULONG_PTR)imageBaseRemote + inth->OptionalHeader.AddressOfEntryPoint);
+
+	DWORD threadId;
+	CreateRemoteThread(hProcess, NULL, NULL, routine, NULL, NULL, &threadId);
+
+	VirtualFree(imageBaseLocal, kImageSize, MEM_RELEASE);
+	fclose(raw_payload);
+}
+
+int main(int argc, char* argv[])
+{
+	//FILE * raw_payload = get_file_buffer("C:\\Users\\pbiel\\source\\repos\\PeDumper\\Debug\\DummyApp.exe");
+	//PIMAGE_NT_HEADERS inth = get_nt_headers(raw_payload);
+
+
+	//LPVOID local_pe = VirtualAlloc(NULL, inth->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	//copy_raw_to_image_local(local_pe, raw_payload);
+	//
+	//adjust_relocations(local_pe, local_pe);
+	//adjust_imports(local_pe);
+	//run_local_copy((ULONG_PTR)local_pe + inth->OptionalHeader.AddressOfEntryPoint);
+
+	//free(raw_payload);
+	//VirtualFree(local_pe, inth->OptionalHeader.SizeOfImage, MEM_RELEASE);
+
+	DWORD pid;
+	if (strcmp(argv[1], "pid") == 0) {
+		pid = argv[2];
+	}
+	else {
+		pid = get_process_id(argv[2]);
+	}
+
+	printf("%s\n", argv[1]);
+	printf("%s\n", argv[2]);
+
+	inject_into_remote(pid);
 
 	getchar();
 

@@ -5,7 +5,7 @@
 
 #include "pe_helper.h"
 
-DWORD find_process_id(const char* process)
+DWORD get_process_id(const char* process)
 {
 	DWORD aProcess[1024];
 	DWORD cbNeeded;
