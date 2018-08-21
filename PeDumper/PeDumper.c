@@ -175,25 +175,50 @@ void adjust_imports(LPVOID payload)
 			continue;
 		}
 
+
 		printf("  %s\n", (ULONG_PTR)payload+imp_desc->Name);
-	
+
+		if (strcmp((ULONG_PTR)payload + imp_desc->Name, "USER32.dll") != 0) {
+			printf("Cannot resolve module\n");
+
+			continue;
+		}
+
+		PIMAGE_THUNK_DATA org_first_thunk = (PIMAGE_THUNK_DATA)((ULONG_PTR)payload+imp_desc->OriginalFirstThunk);
+
+		if (org_first_thunk->u1.Ordinal & IMAGE_ORDINAL_FLAG) {
+			printf("Resolving imports by ordinal not supported!\n");
+
+			continue;
+		}
+
+		//REFACTOR ! ! ! ! ! ! ! ! ! !
+		//ADD ERROR CHECKING ! ! ! 
+		// ADD LIBRARY CHECK ! ! !
+
+		PIMAGE_IMPORT_BY_NAME import_by_name = (PIMAGE_IMPORT_BY_NAME)((ULONG_PTR)payload+org_first_thunk->u1.AddressOfData);
+
+		printf("    %s\n", import_by_name->Name);
+
+		HANDLE hLib = LoadLibrary((ULONG_PTR)payload + imp_desc->Name);
+		FARPROC proc = GetProcAddress(hLib, import_by_name->Name);
+
+		PIMAGE_THUNK_DATA firstThunk = (PIMAGE_THUNK_DATA)((ULONG_PTR)payload + imp_desc->FirstThunk);
+		firstThunk->u1.AddressOfData = proc;
 	}
 }
 
 int main()
 {
-	FILE * raw_payload = get_file_buffer("C:\\Users\\pb\\source\\repos\\pe-dumper\\Debug\\InjectTraget.exe");
+	FILE * raw_payload = get_file_buffer("C:\\Users\\pb\\source\\repos\\pe-dumper\\Debug\\DummyApp.exe");
 	PIMAGE_NT_HEADERS inth = get_nt_headers(raw_payload);
 
 	LPVOID pe_buffer = VirtualAlloc(NULL, inth->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 	copy_raw_to_image_local(pe_buffer, raw_payload);
 	
-
-	PIMAGE_DATA_DIRECTORY pim = get_data_directory(pe_buffer, IMAGE_DIRECTORY_ENTRY_BASERELOC);
-
 	adjust_relocations(pe_buffer, pe_buffer);
 	adjust_imports(pe_buffer);
-
+	run_local_copy((ULONG_PTR)pe_buffer + inth->OptionalHeader.AddressOfEntryPoint);
 
 	free(raw_payload);
 	VirtualFree(pe_buffer, inth->OptionalHeader.SizeOfImage, MEM_RELEASE);
