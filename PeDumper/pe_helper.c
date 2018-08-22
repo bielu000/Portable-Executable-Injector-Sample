@@ -119,6 +119,11 @@ void adjust_relocations(LPVOID imageBase, LPVOID payload)
 		return FALSE;
 	}
 
+	if (reloc_dir->VirtualAddress == NULL) {
+		printf("Not need to do relocations.\n");
+		return TRUE;
+	}
+
 	PIMAGE_BASE_RELOCATION reloc_block = (PIMAGE_BASE_RELOCATION)((ULONG_PTR)payload + reloc_dir->VirtualAddress);
 	DWORD section_size = reloc_dir->Size;
 	ULONG_PTR preferedImageBase = p_nt_headers->OptionalHeader.ImageBase;
@@ -146,7 +151,7 @@ void adjust_relocations(LPVOID imageBase, LPVOID payload)
 				continue;
 			}
 
-			ULONG_PTR copy = *reloc; //only for info purpose
+			ULONG_PTR copy = (ULONG_PTR)*reloc; //only for info purpose
 			ULONG_PTR calculated_value = (*reloc - preferedImageBase) + (ULONG_PTR)imageBase;
 			*reloc = calculated_value;
 

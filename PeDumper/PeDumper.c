@@ -34,7 +34,7 @@ void print_image_info(LPVOID baseAddress, const char* imageName)
 	printf("Size of not-init data: %#08x\n", inth->OptionalHeader.SizeOfUninitializedData);
 	printf("Address of entry point: %#08x\n", inth->OptionalHeader.AddressOfEntryPoint);
 	printf("Base of code: %#08x\n", inth->OptionalHeader.BaseOfCode);
-	printf("Base of data: %#08x\n", inth->OptionalHeader.BaseOfData);
+	//printf("Base of data: %#08x\n", inth->OptionalHeader.BaseOfData);
 	printf("ImageBase: %#08x\n", inth->OptionalHeader.ImageBase);
 	printf("Size of image: %#08x\n", inth->OptionalHeader.SizeOfImage);
 	printf("Size of headers(all): %#08x\n", inth->OptionalHeader.SizeOfHeaders);
@@ -44,7 +44,7 @@ void print_image_info(LPVOID baseAddress, const char* imageName)
 	DWORD kNumberOfSections = inth->FileHeader.NumberOfSections;
 
 	printf("\n-------------- SECTIONS HEADERS --------------\n");
-	for (int i = 0; i < kNumberOfSections; i++) {
+	for (unsigned int i = 0; i < kNumberOfSections; i++) {
 		PIMAGE_SECTION_HEADER sec_header = (PIMAGE_SECTION_HEADER)((ULONG_PTR)&inth->OptionalHeader + kOptHeaderSize + i * sizeof(IMAGE_SECTION_HEADER));
 		printf("Section name: %s\n", sec_header->Name);
 		printf("Virtual address: %#08x\n", sec_header->VirtualAddress);
@@ -68,11 +68,11 @@ void print_image_info(LPVOID baseAddress, const char* imageName)
 		printf(" OriginalFirstThunk: %#008x\n",  imd->OriginalFirstThunk);
 		printf(" FirstThunk: %#010x\n", imd->FirstThunk);
 		printf(" Functions: \n");
-
+		 
 		PIMAGE_THUNK_DATA p_thunk_data = (PIMAGE_THUNK_DATA)((ULONG_PTR)baseAddress + imd->FirstThunk);
 
 		PIMAGE_THUNK_DATA p_org_thunk_data = (PIMAGE_THUNK_DATA)((ULONG_PTR)baseAddress + imd->OriginalFirstThunk);
-		while (p_org_thunk_data->u1.ForwarderString != NULL) {
+		while (p_org_thunk_data->u1.ForwarderString != 0) {
 			DWORD hintBytes = sizeof(BYTE) * 2;
 			printf("    %s\n", ((ULONG_PTR)baseAddress + p_org_thunk_data->u1.ForwarderString+ hintBytes));
 			p_org_thunk_data++;
@@ -121,7 +121,7 @@ void remote_process()
 	if (hSnapshot == NULL) {
 		printf("Cannot create process snapshot!\n");
 
-		return 1;
+		return ;
 	}
 
 	MODULEENTRY32 mod;
@@ -131,9 +131,9 @@ void remote_process()
 	DWORD moduleSize = mod.modBaseSize;
 	LPVOID localBuffer = VirtualAlloc(NULL, moduleSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 
-	HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, NULL, payloadProcId);
+	HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, payloadProcId);
 
-	DWORD bytesRead;
+	SIZE_T bytesRead;
 
 	if (!ReadProcessMemory(hProcess, mod.modBaseAddr, localBuffer, moduleSize, &bytesRead)) {
 		printf("Cannot read process memory: %d\n", GetLastError());
@@ -151,7 +151,7 @@ void run_local_copy(LPVOID entryPoint)
 	LPTHREAD_START_ROUTINE routine = (LPTHREAD_START_ROUTINE)(entryPoint);
 
 	DWORD threadId;
-	CreateThread(NULL, NULL, routine, NULL, NULL, &threadId);
+	CreateThread(NULL, 0, routine, NULL, 0, &threadId);
 }
 
 void adjust_imports(LPVOID payload)
@@ -167,7 +167,7 @@ void adjust_imports(LPVOID payload)
 	DWORD kImportsSize = import_dir->Size;
 	DWORD kCountDirs = kImportsSize / sizeof(IMAGE_IMPORT_DESCRIPTOR);
 	
-	for (int i = 0; i < kCountDirs; i++) {
+	for (unsigned int i = 0; i < kCountDirs; i++) {
 		ULONG_PTR desc_addr = (ULONG_PTR)payload + import_dir->VirtualAddress + sizeof(IMAGE_IMPORT_DESCRIPTOR) * i;
 		PIMAGE_IMPORT_DESCRIPTOR imp_desc = (PIMAGE_IMPORT_DESCRIPTOR)desc_addr;
 
@@ -178,7 +178,7 @@ void adjust_imports(LPVOID payload)
 
 		printf("  %s\n", (ULONG_PTR)payload+imp_desc->Name);
 
-		if (strcmp((ULONG_PTR)payload + imp_desc->Name, "USER32.dll") != 0) {
+		if (strcmp((LPCSTR)((ULONG_PTR)payload + imp_desc->Name), "USER32.dll") != 0) {
 			printf("Cannot resolve module\n");
 
 			continue;
@@ -200,11 +200,11 @@ void adjust_imports(LPVOID payload)
 
 		printf("    %s\n", import_by_name->Name);
 
-		HANDLE hLib = LoadLibrary((ULONG_PTR)payload + imp_desc->Name);
+		HANDLE hLib = LoadLibrary((LPCSTR)(ULONG_PTR)payload + imp_desc->Name);
 		FARPROC proc = GetProcAddress(hLib, import_by_name->Name);
 
 		PIMAGE_THUNK_DATA firstThunk = (PIMAGE_THUNK_DATA)((ULONG_PTR)payload + imp_desc->FirstThunk);
-		firstThunk->u1.AddressOfData = proc;
+		firstThunk->u1.AddressOfData = (ULONG_PTR)proc;
 	}
 }
 
@@ -224,23 +224,25 @@ void adjust_imports(LPVOID payload)
 void inject_into_remote(DWORD pid)
 {
 	char* target_n = "InjectTarget.exe";
-	char* payload_path  = "C:\\Users\\pbiel\\source\\repos\\PeDumper\\Debug\\DummyApp.exe";
+	//char* payload_path  = "C:\\Users\\pbiel\\source\\repos\\PeDumper\\Debug\\DummyApp.exe";
+	char* payload_path  = "C:\\Users\\pbiel\\source\\repos\\PeDumper\\x64\\Debug\\DummyApp.exe";
 
-	FILE* raw_payload = get_file_buffer(payload_path);
+	BYTE* raw_payload = get_file_buffer(payload_path);
 	PIMAGE_NT_HEADERS inth = get_nt_headers(raw_payload);
 
 	DWORD kImageSize = inth->OptionalHeader.SizeOfImage;
 	//DWORD kTargetProcId = get_process_id(target_n);
-	DWORD kTargetProcId = pid;
+	DWORD kTargetProcId = 27472;
 
-	HANDLE hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_WRITE, NULL, kTargetProcId);
+	//HANDLE hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_WRITE, NULL, kTargetProcId);
+	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, kTargetProcId);
 	if (hProcess == NULL) {
 		printf("Error: Process handle is NULL\n");
 	}
 	
 	LPVOID imageBaseRemote = VirtualAllocEx(hProcess, NULL, kImageSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 	if (imageBaseRemote == NULL) {
-		printf("Error: Image base remote is NULL\n");
+		printf("Error: Image base remote is NULL. Error code: %d\n", GetLastError());
 	}
 
 	LPVOID imageBaseLocal = VirtualAlloc(NULL, kImageSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
@@ -248,18 +250,25 @@ void inject_into_remote(DWORD pid)
 	adjust_relocations(imageBaseRemote, imageBaseLocal);
 	adjust_imports(imageBaseLocal);
 	
-	DWORD bytesWritten;
+	SIZE_T bytesWritten;
 	if (!WriteProcessMemory(hProcess, imageBaseRemote, imageBaseLocal, kImageSize, &bytesWritten)) {
 		printf("Cannot write to remote process!\n");
 	}
 
-	LPTHREAD_START_ROUTINE routine = ((ULONG_PTR)imageBaseRemote + inth->OptionalHeader.AddressOfEntryPoint);
+	LPTHREAD_START_ROUTINE routine = (LPTHREAD_START_ROUTINE)((ULONG_PTR)imageBaseRemote + inth->OptionalHeader.AddressOfEntryPoint);
 
 	DWORD threadId;
-	CreateRemoteThread(hProcess, NULL, NULL, routine, NULL, NULL, &threadId);
+	HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0, routine, NULL, 0, &threadId);
+
+	if (hThread == NULL) {
+		printf("Error! Cannot create remote thread. Error code: %d\n", GetLastError());
+	}
+
+	printf("Done...! Thread id: %d\n", threadId);
 
 	VirtualFree(imageBaseLocal, kImageSize, MEM_RELEASE);
-	fclose(raw_payload);
+	
+	free(raw_payload);
 }
 
 int main(int argc, char* argv[])
@@ -279,7 +288,7 @@ int main(int argc, char* argv[])
 	//VirtualFree(local_pe, inth->OptionalHeader.SizeOfImage, MEM_RELEASE);
 
 	DWORD pid;
-	if (strcmp(argv[1], "pid") == 0) {
+	/*if (strcmp(argv[1], "pid") == 0) {
 		pid = argv[2];
 	}
 	else {
@@ -287,8 +296,8 @@ int main(int argc, char* argv[])
 	}
 
 	printf("%s\n", argv[1]);
-	printf("%s\n", argv[2]);
-
+	printf("%s\n", argv[2])*/;
+	pid = 6076;
 	inject_into_remote(pid);
 
 	getchar();

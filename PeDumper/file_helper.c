@@ -4,7 +4,7 @@
 #include <Windows.h>
 #include <stdio.h>
 
-long get_file_size(FILE* file)
+long _get_file_size(FILE* file)
 {
 	long file_size;
 
@@ -19,7 +19,7 @@ long get_file_size(FILE* file)
 	return file_size;
 }
 
-BYTE* get_file_buffer(const char* filename)
+long get_file_size(char* filename)
 {
 	FILE* file;
 	fopen_s(&file, filename, "rb");
@@ -29,7 +29,26 @@ BYTE* get_file_buffer(const char* filename)
 		return NULL;
 	}
 
-	long file_size = get_file_size(file);
+	long file_size;
+
+	fseek(file, 0, SEEK_END);
+	file_size = ftell(file);
+	fseek(file, 0, SEEK_SET);
+
+	return file_size;
+}
+
+BYTE* get_file_buffer(char* filename)
+{
+	FILE* file;
+	fopen_s(&file, filename, "rb");
+	if (file == NULL) {
+		printf("Invalid file!\n");
+
+		return NULL;
+	}
+
+	long file_size = _get_file_size(file);
 
 	if (file_size == 0) {
 		printf("File loaded invalid.\n");
